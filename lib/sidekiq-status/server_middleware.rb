@@ -16,6 +16,7 @@ module Sidekiq::Status
     # @option opts [Fixnum] :expiration ttl for complete jobs
     def initialize(opts = {})
       @expiration = opts[:expiration]
+      @capture_retrying = opts[:capture_retrying] || true
     end
 
     # Uses sidekiq's internal jid as id
@@ -32,7 +33,7 @@ module Sidekiq::Status
 
       # Initial assignment to prevent SystemExit & co. from excepting
       expiry = @expiration
-
+      capture_retrying = @capture_retrying
       # Determine the actual job class
       klass = msg["args"][0]["job_class"] || msg["class"] rescue msg["class"]
       job_class = klass.is_a?(Class) ? klass : Module.const_get(klass)
@@ -62,7 +63,7 @@ module Sidekiq::Status
           status = :retrying
         end
       end
-      store_status worker.jid, status, expiry
+      store_status worker.jid, status, expiry if (capture_retrying || status!= :retrying)
       raise
     end
 
